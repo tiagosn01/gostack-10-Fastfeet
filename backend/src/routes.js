@@ -1,8 +1,15 @@
 import { Router } from 'express';
+import multer from 'multer';
+import multerConfig from './config/multer';
+
 import UserController from './app/controller/UserController';
 import RecipientController from './app/controller/RecipientController';
 import SessionController from './app/controller/SessionController';
+import FileController from './app/controller/FileController';
+
 import authMiddleware from './app/middlewares/auth';
+
+const upload = multer(multerConfig);
 
 const routes = new Router();
 
@@ -14,5 +21,7 @@ routes.use(authMiddleware);
 
 routes.post('/recipients', RecipientController.store);
 routes.put('/recipients/:id', RecipientController.update);
+
+routes.post('/files', upload.single('file'), FileController.store);
 
 export default routes;
