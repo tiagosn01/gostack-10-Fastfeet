@@ -39,11 +39,11 @@ class DeliverymanController {
       return res.status(401).json('User is not an admin');
     }
 
-    const manExists = await Deliveryman.findOne({
+    const deliverymanExists = await Deliveryman.findOne({
       where: { email: req.body.email },
     });
 
-    if (manExists) {
+    if (deliverymanExists) {
       return res.status(400).json({ error: 'Deliveryman already exists.' });
     }
 
@@ -58,10 +58,8 @@ class DeliverymanController {
 
   async update(req, res) {
     const schema = Yup.object().shape({
-      name: Yup.string().required(),
-      email: Yup.string()
-        .required()
-        .email(),
+      name: Yup.string(),
+      email: Yup.string().email(),
       avatar_id: Yup.number(),
     });
 
@@ -83,18 +81,41 @@ class DeliverymanController {
       return res.status(400).json({ error: 'Delivery man does not exist' });
     }
 
-    // Verificando email
-    const emailExists = await Deliveryman.findOne({
-      where: { email: req.body.email },
-    });
+    const { email } = req.body;
+    // Verificando se ja existe cadastro com o email
+    if (email && email !== deliveryman.email) {
+      const emailExists = await Deliveryman.findOne({
+        where: { email: req.body.email },
+      });
 
-    if (emailExists) {
-      return res.status(401).json({ error: 'Delivery man already exist' });
+      if (emailExists) {
+        return res.status(401).json({ error: 'Delivery man already exist' });
+      }
     }
 
-    const { name, email } = await deliveryman.update(req.body);
+    const { name } = await deliveryman.update(req.body);
 
     return res.json({ name, email });
+  }
+
+  async delete(req, res) {
+    const deliveryman = await Deliveryman.findByPk(req.params.id, {
+      include: [
+        {
+          model: File,
+          as: 'avatar',
+          attributes: ['name', 'path'],
+        },
+      ],
+    });
+
+    if (!deliveryman) {
+      return res.status(400).json({ error: 'Delivery man does not exist' });
+    }
+
+    await deliveryman.destroy();
+
+    return res.json({ message: 'Delivery man has been deleted' });
   }
 }
 
