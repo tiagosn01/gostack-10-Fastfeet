@@ -99,21 +99,24 @@ class DeliverymanController {
   }
 
   async delete(req, res) {
-    const deliveryman = await Deliveryman.findByPk(req.params.id, {
-      include: [
-        {
-          model: File,
-          as: 'avatar',
-          attributes: ['name', 'path'],
-        },
-      ],
+    const isAdmin = await User.findOne({
+      where: { id: req.userId, provider: false },
     });
+
+    if (!isAdmin) {
+      return res.status(401).json('User is not an admin');
+    }
+
+    const deliveryman = await Deliveryman.findByPk(req.params.id);
+
+    const deliverymanAvatar = await File.findByPk(deliveryman.avatar_id);
 
     if (!deliveryman) {
       return res.status(400).json({ error: 'Delivery man does not exist' });
     }
 
     await deliveryman.destroy();
+    await deliverymanAvatar.destroy();
 
     return res.json({ message: 'Delivery man has been deleted' });
   }
