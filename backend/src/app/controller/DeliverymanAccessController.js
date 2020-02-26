@@ -1,9 +1,28 @@
-import { parseISO, isBefore } from 'date-fns';
+import * as Yup from 'yup';
+import {
+  parseISO,
+  isBefore,
+  isAfter,
+  setHours,
+  setMinutes,
+  setSeconds,
+} from 'date-fns';
 import Deliveryman from '../models/Deliveryman';
 import Delivery from '../models/Delivery';
 
 class DeliverymanAccessController {
   async update(req, res) {
+    const schema = Yup.object().shape({
+      start_date: Yup.date(),
+      end_date: Yup.date(),
+      signature_id: Yup.number(),
+    });
+
+    if (!(await schema.isValid(req.body))) {
+      return res.status(400).json({ error: 'Validation error.' });
+    }
+
+    // check se a entrega existe
     const { deliveryman_id, delivery_id } = req.params;
     const delivery = await Delivery.findByPk(delivery_id);
 
@@ -11,6 +30,7 @@ class DeliverymanAccessController {
       return res.status(400).json({ error: 'Delivery not exists' });
     }
 
+    // check se o entregador existe
     const deliveryman = await Deliveryman.findOne({
       where: { id: deliveryman_id },
     });
@@ -19,12 +39,36 @@ class DeliverymanAccessController {
       return res.status(400).json({ error: 'Delivery man not exist.' });
     }
 
+    // check se a encomenda ja saiu pra entrega
+    const checkStart = await Delivery.findOne({
+      where: {
+        id: delivery_id,
+        start_date: null,
+      },
+    });
+
+    if (!checkStart) {
+      return res.status(401).json({ error: `Delivery has already left at ` });
+    }
+
     const { start_date } = req.body;
 
-    const data = parseISO(start_date);
+    const startDate = parseISO(start_date);
 
-    if (isBefore(data, new Date())) {
-      return res.status(400).json({ error: 'Data inválida.' });
+    // check se data ja passou
+    if (isBefore(startDate, new Date())) {
+      return res.status(400).json({ error: 'Past dates are not permitted.' });
+    }
+
+    // check se está entre 8 e 18
+
+    const today = new Date();
+
+    const start = setSeconds(setMinutes(setHours(today, 8), 0), 0);
+    const end = setSeconds(setMinutes(setHours(today, 18), 0), 0);
+
+    if (isBefore(today, start) || isAfter(today, end)) {
+      return res.status(400).json({ error: 'Working hours from 8 am to 6 pm' });
     }
 
     await delivery.update(req.body);
