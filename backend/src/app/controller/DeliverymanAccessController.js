@@ -48,10 +48,10 @@ class DeliverymanAccessController {
     });
 
     if (!checkStart) {
-      return res.status(401).json({ error: `Delivery has already left at ` });
+      return res.status(401).json({ error: 'Delivery has already left' });
     }
 
-    const { start_date } = req.body;
+    const { start_date, signature_id } = req.body;
 
     const startDate = parseISO(start_date);
 
@@ -61,7 +61,6 @@ class DeliverymanAccessController {
     }
 
     // check se está entre 8 e 18
-
     const today = new Date();
 
     const start = setSeconds(setMinutes(setHours(today, 8), 0), 0);
@@ -69,6 +68,15 @@ class DeliverymanAccessController {
 
     if (isBefore(today, start) || isAfter(today, end)) {
       return res.status(400).json({ error: 'Working hours from 8 am to 6 pm' });
+    }
+
+    if (signature_id) {
+      delivery.signature_id = signature_id;
+      delivery.end_date = new Date();
+    } else if (!signature_id) {
+      return res
+        .status(401)
+        .json({ error: 'Signature is required to close orders' });
     }
 
     await delivery.update(req.body);
