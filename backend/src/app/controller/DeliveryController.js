@@ -1,9 +1,19 @@
+import * as Yup from 'yup';
 import Delivery from '../models/Delivery';
 import Deliveryman from '../models/Deliveryman';
 import Recipient from '../models/Recipient';
 
 class DeliveryController {
   async store(req, res) {
+    const schema = Yup.object().shape({
+      deliveryman_id: Yup.number().required(),
+      recipient_id: Yup.number().required(),
+      product: Yup.string().required(),
+    });
+
+    if (!(await schema.isValid(req.body))) {
+      return res.status(400).json({ error: 'Validation error.' });
+    }
     // Delivery man exists
     const { deliveryman_id } = req.body;
 

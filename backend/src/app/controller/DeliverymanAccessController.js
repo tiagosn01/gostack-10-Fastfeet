@@ -24,6 +24,8 @@ class DeliverymanAccessController {
 
     // check se a entrega existe
     const { deliveryman_id, delivery_id } = req.params;
+    const { start_date, signature_id } = req.body;
+
     const delivery = await Delivery.findByPk(delivery_id);
 
     if (!delivery) {
@@ -40,18 +42,13 @@ class DeliverymanAccessController {
     }
 
     // check se a encomenda ja saiu pra entrega
-    const checkStart = await Delivery.findOne({
-      where: {
-        id: delivery_id,
-        start_date: null,
-      },
-    });
 
-    if (!checkStart) {
-      return res.status(401).json({ error: 'Delivery has already left' });
+    if (start_date) {
+      const alreadyStart = delivery.start_date;
+      if (alreadyStart) {
+        return res.status(401).json({ error: 'Delivery has already left' });
+      }
     }
-
-    const { start_date, signature_id } = req.body;
 
     const startDate = parseISO(start_date);
 
@@ -67,16 +64,26 @@ class DeliverymanAccessController {
     const end = setSeconds(setMinutes(setHours(today, 18), 0), 0);
 
     if (isBefore(today, start) || isAfter(today, end)) {
-      return res.status(400).json({ error: 'Working hours from 8 am to 6 pm' });
+      return res.status(400).json({ error: 'Working time 8 am to 6 pm' });
     }
 
+    // check se a entrega ja foi feita
     if (signature_id) {
+      const alreadyEnd = delivery.signature_id;
+      if (alreadyEnd) {
+        return res
+          .status(401)
+          .json({ error: 'Delivery has already been made' });
+      }
+      // check se a entrega esta com os start date preenchido
+      if (delivery.start_date === null) {
+        return res
+          .status(401)
+          .json({ error: 'This delivery did not come out' });
+      }
       delivery.signature_id = signature_id;
       delivery.end_date = new Date();
-    } else if (!signature_id) {
-      return res
-        .status(401)
-        .json({ error: 'Signature is required to close orders' });
+      await delivery.save();
     }
 
     await delivery.update(req.body);
