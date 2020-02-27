@@ -7,6 +7,7 @@ class DeliverymanController {
   async index(req, res) {
     const listMan = await Deliveryman.findAll({
       attributes: ['id', 'name', 'email', 'avatar_id'],
+      order: ['id'],
       include: [
         {
           model: File,
@@ -31,6 +32,7 @@ class DeliverymanController {
       return res.status(400).json({ error: 'Validation fails' });
     }
 
+    // Check se o user é admin
     const isAdmin = await User.findOne({
       where: { id: req.userId, provider: false },
     });
