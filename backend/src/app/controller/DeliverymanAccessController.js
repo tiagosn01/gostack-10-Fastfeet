@@ -7,10 +7,37 @@ import {
   setMinutes,
   setSeconds,
 } from 'date-fns';
+import { Op } from 'sequelize';
 import Deliveryman from '../models/Deliveryman';
 import Delivery from '../models/Delivery';
+import Recipient from '../models/Recipient';
 
 class DeliverymanAccessController {
+  async index(req, res) {
+    const { id } = req.params;
+    const list = await Delivery.findAll({
+      where: { deliveryman_id: id },
+      attributes: ['id', 'product', 'start_date', 'end_date', 'canceled_at'],
+      order: ['created_at'],
+      include: [
+        {
+          model: Recipient,
+          as: 'recipient',
+          attributes: [
+            'name',
+            'street',
+            'number',
+            'complement',
+            'city',
+            'state',
+          ],
+        },
+      ],
+    });
+
+    return res.json(list);
+  }
+
   async update(req, res) {
     const schema = Yup.object().shape({
       start_date: Yup.date(),
@@ -67,6 +94,20 @@ class DeliverymanAccessController {
       return res.status(400).json({ error: 'Working time 8 am to 6 pm' });
     }
 
+    const { count } = await Delivery.findAndCountAll({
+      where: {
+        deliveryman_id: delivery.deliveryman_id,
+        canceled_at: null,
+        start_date: { [Op.between]: [start, end] },
+      },
+    });
+
+    if (count === 5) {
+      return res
+        .status(400)
+        .json({ error: 'You can make only 5 deliveries for day' });
+    }
+
     // check se a entrega ja foi feita
     if (signature_id) {
       const alreadyEnd = delivery.signature_id;
@@ -83,9 +124,9 @@ class DeliverymanAccessController {
       }
       delivery.signature_id = signature_id;
       delivery.end_date = new Date();
-      await delivery.save();
     }
 
+    await delivery.save();
     await delivery.update(req.body);
 
     return res.json(delivery);

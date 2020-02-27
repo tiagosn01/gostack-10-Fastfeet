@@ -23,6 +23,7 @@ routes.put(
   '/deliveryman/:deliveryman_id/:delivery_id',
   DeliverymanAccessController.update
 );
+routes.get('/deliveryman/:id', DeliverymanAccessController.index);
 
 routes.use(authMiddleware);
 
