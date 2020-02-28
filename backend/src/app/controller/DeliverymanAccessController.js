@@ -14,28 +14,61 @@ import Recipient from '../models/Recipient';
 
 class DeliverymanAccessController {
   async index(req, res) {
-    const { id } = req.params;
-    const list = await Delivery.findAll({
-      where: { deliveryman_id: id },
-      attributes: ['id', 'product', 'start_date', 'end_date', 'canceled_at'],
-      order: ['created_at'],
-      include: [
-        {
-          model: Recipient,
-          as: 'recipient',
-          attributes: [
-            'name',
-            'street',
-            'number',
-            'complement',
-            'city',
-            'state',
-          ],
-        },
-      ],
-    });
+    const { situation } = req.body;
 
-    return res.json(list);
+    if (situation === 'Open') {
+      const { id } = req.params;
+      const list = await Delivery.findAll({
+        where: { deliveryman_id: id, canceled_at: null, end_date: null },
+        attributes: ['id', 'product', 'start_date', 'end_date', 'canceled_at'],
+        order: ['created_at'],
+        include: [
+          {
+            model: Recipient,
+            as: 'recipient',
+            attributes: [
+              'name',
+              'street',
+              'number',
+              'complement',
+              'city',
+              'state',
+            ],
+          },
+        ],
+      });
+      return res.json(list);
+    }
+
+    if (situation === 'Closed') {
+      const { id } = req.params;
+      const list = await Delivery.findAll({
+        where: {
+          deliveryman_id: id,
+          canceled_at: null,
+          [Op.not]: [{ end_date: null }],
+        },
+        attributes: ['id', 'product', 'start_date', 'end_date', 'canceled_at'],
+        order: ['created_at'],
+        include: [
+          {
+            model: Recipient,
+            as: 'recipient',
+            attributes: [
+              'name',
+              'street',
+              'number',
+              'complement',
+              'city',
+              'state',
+            ],
+          },
+        ],
+      });
+      return res.json(list);
+    }
+
+    return res.status(400).json({ error: 'Incorrect situation validation' });
   }
 
   async update(req, res) {
@@ -75,13 +108,13 @@ class DeliverymanAccessController {
       if (alreadyStart) {
         return res.status(401).json({ error: 'Delivery has already left' });
       }
-    }
 
-    const startDate = parseISO(start_date);
+      const startDate = parseISO(start_date);
 
-    // check se data ja passou
-    if (isBefore(startDate, new Date())) {
-      return res.status(400).json({ error: 'Past dates are not permitted.' });
+      // check se data ja passou
+      if (isBefore(startDate, new Date())) {
+        return res.status(400).json({ error: 'Past dates are not permitted.' });
+      }
     }
 
     // check se está entre 8 e 18
@@ -94,6 +127,7 @@ class DeliverymanAccessController {
       return res.status(400).json({ error: 'Working time 8 am to 6 pm' });
     }
 
+    // Check contagem de entregas no dia
     const { count } = await Delivery.findAndCountAll({
       where: {
         deliveryman_id: delivery.deliveryman_id,
