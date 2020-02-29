@@ -1,6 +1,8 @@
 import ProblemController from '../models/DeliveryProblem';
 import User from '../models/User';
 import Delivery from '../models/Delivery';
+import Mail from '../../lib/Mail';
+import Deliveryman from './DeliveryController';
 
 class CancelController {
   /* Rota que lista todos problemas de uma entrega especifica pois
@@ -43,16 +45,28 @@ class CancelController {
       return res.status(400).json({ error: 'Problem does not exist' });
     }
 
-    const delivery = await Delivery.findOne({
-      where: { id: problem.delivery_id },
+    const delivery = await Delivery.findByPk(problem.delivery_id, {
+      include: [
+        {
+          model: Deliveryman,
+          as: 'deliveryman',
+          attributes: ['name', 'email'],
+        },
+      ],
     });
-
-    if (!delivery) {
-      return res.status(400).json({ error: 'Delivery does not exist' });
-    }
 
     delivery.canceled_at = new Date();
     await delivery.save();
+
+    await Mail.sendMail({
+      to: `${delivery.deliveryman.name} <${delivery.deliveryman.email}>`,
+      subject: 'Entrega Cancelada',
+      template: 'cancelattion',
+      context: {
+        deliveryman: delivery.deliveryman.name,
+        product: delivery.product,
+      },
+    });
     return res.json(delivery);
   }
 }
