@@ -5,6 +5,8 @@ import Recipient from '../models/Recipient';
 import File from '../models/File';
 import User from '../models/User';
 
+import Mail from '../../lib/Mail';
+
 class DeliveryController {
   async index(req, res) {
     const { page = 1 } = req.query;
@@ -77,11 +79,11 @@ class DeliveryController {
     // Delivery man exists
     const { deliveryman_id } = req.body;
 
-    const deliverymanExists = await Deliveryman.findOne({
+    const deliveryman = await Deliveryman.findOne({
       where: { id: deliveryman_id },
     });
 
-    if (!deliverymanExists) {
+    if (!deliveryman) {
       return res
         .status(400)
         .json({ error: 'This delivery man does not exist.' });
@@ -103,6 +105,12 @@ class DeliveryController {
       recipient_id,
       deliveryman_id,
       product,
+    });
+
+    await Mail.sendMail({
+      to: `${deliveryman.name} <${deliveryman.email}>`,
+      subject: 'Nova entrega',
+      text: 'Nova entrega pronta para retirada.',
     });
 
     return res.json(delivery);
